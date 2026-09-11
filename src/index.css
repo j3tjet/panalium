@@ -1,46 +1,50 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
 @import 'tailwindcss';
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-border: var(--border);
-  --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 2px);
-  --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) + 4px);
-}
+/*
+ * Design tokens de Panalium. Todo color usado en la UI vive aquí y se expone
+ * como utilidad Tailwind (bg-card, text-muted-foreground, border-border, ...).
+ * Espejo en JS para estilos inline: `src/shared/config/theme.ts`.
+ */
+@theme {
+  /* Marca */
+  --color-carbon: #1C1C1A;
+  --color-cream: #F7F3E8;
+  --color-honey: #F2B705;
+  --color-honey-light: #F8D66D;
+  --color-olive: #68705A;
+  --color-brown: #29251F;
+  --color-beige: #DDD5C3;
 
-:root {
-  --background: #080c14;
-  --foreground: #dde3ed;
-  --card: #0d1526;
-  --card-foreground: #dde3ed;
-  --primary: #3b7bff;
-  --primary-foreground: #ffffff;
-  --secondary: #111c30;
-  --secondary-foreground: #a8b8d0;
-  --muted: #0f1a2e;
-  --muted-foreground: #64748b;
-  --accent: #10b981;
-  --accent-foreground: #ffffff;
-  --border: #1a2a42;
-  --ring: #3b7bff;
-  --radius: 8px;
+  /* Roles semánticos */
+  --color-background: #1C1C1A;
+  --color-sidebar: #1C1C1A;
+  --color-foreground: #F7F3E8;
+  --color-secondary-foreground: #DDD5C3;
+  --color-muted-foreground: #68705A;
+  --color-faint: #A8A090;
 
-  --usdt: #26a17b;
-  --bs-token: #f59e0b;
+  --color-card: #F7F3E8;
+  --color-card-foreground: #29251F;
+  --color-surface: #FFFFFF;
+  --color-elevated: #29251F;
+
+  --color-border: #DDD5C3;
+  --color-border-dark: #3B3733;
+
+  --color-primary: #F2B705;
+  --color-primary-hover: #F8D66D;
+  --color-primary-foreground: #29251F;
+  --color-accent: #68705A;
+  --color-accent-foreground: #F7F3E8;
+
+  --font-sans: 'Manrope', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Manrope', 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, monospace;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
 }
 
 html, body, #root {
@@ -52,84 +56,89 @@ html, body, #root {
 }
 
 body {
-  font-family: 'Outfit', sans-serif;
-  background-color: var(--background);
-  color: var(--foreground);
+  font-family: var(--font-sans);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
   -webkit-font-smoothing: antialiased;
 }
 
-.mono {
-  font-family: 'JetBrains Mono', monospace;
+.display {
+  font-family: var(--font-display);
 }
 
-/* Custom scrollbar */
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* Hexágono de lados verticales: unidad visual de Panalium */
+.hex {
+  clip-path: polygon(25% 2%, 75% 2%, 100% 50%, 75% 98%, 25% 98%, 0% 50%);
+}
+
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-  opacity: 0;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 2px;
+  background: var(--color-border-dark);
+  border-radius: 3px;
 }
-:hover::-webkit-scrollbar-thumb { background: #2a3e5a; }
+:hover::-webkit-scrollbar-thumb { background: var(--color-olive); }
 
-/* Sidebar nav active */
-.nav-item-active {
-  background: linear-gradient(90deg, rgba(59,123,255,0.15) 0%, transparent 100%);
-  border-left: 2px solid var(--primary);
-  color: #fff;
-}
+/* Navegación lateral */
 .nav-item {
-  border-left: 2px solid transparent;
-  transition: all 0.15s;
+  transition: background-color 0.15s, color 0.15s;
 }
 .nav-item:hover {
-  background: rgba(255,255,255,0.04);
-  color: #fff;
+  background: rgba(247, 243, 232, 0.06);
+  color: var(--color-foreground);
+}
+.nav-item-active,
+.nav-item-active:hover {
+  background: var(--color-elevated);
+  color: var(--color-honey-light);
 }
 
-/* Card hover */
+/* Tarjetas interactivas */
 .card-hover {
   transition: border-color 0.2s, transform 0.2s;
 }
 .card-hover:hover {
-  border-color: #2a3e5a;
+  border-color: var(--color-brown);
   transform: translateY(-1px);
 }
 
-/* Gradient text */
-.gradient-text {
-  background: linear-gradient(135deg, #3b7bff, #10b981);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Status badges */
-.badge-open { background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25); }
-.badge-funded { background: rgba(59,123,255,0.12); color: #3b7bff; border: 1px solid rgba(59,123,255,0.25); }
-.badge-closed { background: rgba(100,116,139,0.12); color: #64748b; border: 1px solid rgba(100,116,139,0.25); }
-.badge-intl { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.25); }
-
-/* Input focus */
+/* Foco en campos */
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: var(--primary) !important;
-  box-shadow: 0 0 0 3px rgba(59,123,255,0.15);
+  border-color: var(--color-honey) !important;
+  box-shadow: 0 0 0 3px var(--color-honey-light);
 }
 
-/* Progress bar */
+/* Barra de llenado de miel */
 .progress-bar {
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
+  height: 8px;
+  background: var(--color-beige);
+  border-radius: 999px;
   overflow: hidden;
 }
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b7bff, #10b981);
-  border-radius: 2px;
+  background: var(--color-honey);
+  border-radius: 999px;
   transition: width 0.5s ease;
+}
+.progress-fill-complete {
+  background: var(--color-olive);
+}
+
+/* Etiqueta pequeña en mayúsculas (campos, tarjetas de estadísticas) */
+.label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-olive);
 }
