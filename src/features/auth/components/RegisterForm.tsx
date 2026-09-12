@@ -25,20 +25,28 @@ export default function RegisterForm() {
     role: "buyer" as RegistrableRole,
   })
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    setError("")
     if (!form.name || !form.email || !form.phone || !form.password) {
       setError("Completa todos los campos para entrar a la colmena.")
       return
     }
-    const result = register({
-      name: form.name,
-      email: form.email,
-      phone: form.phone,
-      role: form.role,
-    })
-    if (!result.ok) setError(result.error)
+    setLoading(true)
+    try {
+      const result = await register({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        role: form.role,
+        password: form.password,
+      })
+      if (!result.ok) setError(result.error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -100,8 +108,8 @@ export default function RegisterForm() {
           {error}
         </p>
       )}
-      <Button type="submit" size="lg" block>
-        Registrar una nueva Abeja
+      <Button type="submit" size="lg" block disabled={loading}>
+        {loading ? 'Registrando...' : 'Registrar una nueva Abeja'}
       </Button>
     </form>
   )

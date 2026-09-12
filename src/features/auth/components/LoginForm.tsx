@@ -2,16 +2,16 @@ import { useState, type FormEvent } from "react"
 import { Button, Input } from "@/shared/ui"
 import { useFormState } from "@/shared/hooks"
 import { useAuth } from "../AuthProvider"
-import DemoAccountList from "./DemoAccountList"
 
 export default function LoginForm() {
   const { login } = useAuth()
-  const { bind, form } = useFormState({ email: "", password: "" })
+  const { bind, form, setField } = useFormState({ email: "", password: "" })
   const [error, setError] = useState("")
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    const result = login(form.email)
+    setError("")
+    const result = await login(form.email, form.password)
     if (!result.ok) setError(result.error)
   }
 
@@ -40,7 +40,6 @@ export default function LoginForm() {
       <Button type="submit" size="lg" block className="mt-1">
         Entrar a la colmena
       </Button>
-      <DemoAccountList onSelect={(email) => login(email)} />
     </form>
   )
 }
