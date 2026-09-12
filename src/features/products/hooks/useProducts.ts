@@ -1,13 +1,8 @@
 import { useCallback, useMemo } from "react"
-import {
-  createProduct,
-  productCategories,
-  productsByWholesaler,
-  type CreateProductInput,
-  type Product,
-} from "@/domain"
+import { productCategories, productsByWholesaler, type CreateProductInput, type Product } from "@/domain"
 import { productsActions, useAppDispatch, useAppState } from "@/store"
-import { useCurrentUser } from "@/features/auth"
+import { getCurrentIdToken } from "@/shared/lib/api"
+import { createProductOnBackend } from "../api"
 
 export function useProducts() {
   const { products } = useAppState()
@@ -26,15 +21,15 @@ export function useMyProducts(): Product[] {
 }
 
 export function useProductActions() {
-  const user = useCurrentUser()
   const dispatch = useAppDispatch()
   const addProduct = useCallback(
-    (input: CreateProductInput) => {
-      const product = createProduct(input, user)
+    async (input: CreateProductInput) => {
+      const token = await getCurrentIdToken()
+      const product = await createProductOnBackend(input, token)
       dispatch(productsActions.add(product))
       return product
     },
-    [dispatch, user],
+    [dispatch],
   )
   return { addProduct }
 }

@@ -7,12 +7,18 @@ export default function LoginForm() {
   const { login } = useAuth()
   const { bind, form, setField } = useFormState({ email: "", password: "" })
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError("")
-    const result = await login(form.email, form.password)
-    if (!result.ok) setError(result.error)
+    setLoading(true)
+    try {
+      const result = await login(form.email, form.password)
+      if (!result.ok) setError(result.error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -37,8 +43,8 @@ export default function LoginForm() {
           {error}
         </p>
       )}
-      <Button type="submit" size="lg" block className="mt-1">
-        Entrar a la colmena
+      <Button type="submit" size="lg" block className="mt-1" disabled={loading}>
+        {loading ? "Entrando..." : "Entrar a la colmena"}
       </Button>
     </form>
   )

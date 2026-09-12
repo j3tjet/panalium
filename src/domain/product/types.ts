@@ -16,11 +16,9 @@ export interface Product {
 }
 
 export interface CreateProductInput {
-  name: string
   description: string
+  link: string
+  minQuantity: number
   unitPrice: number
-  currency: Currency
-  minUnits: number
-  image?: string
-  category: string
+  photo: File | null
 }

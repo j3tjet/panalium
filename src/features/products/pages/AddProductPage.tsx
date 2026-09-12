@@ -22,8 +22,8 @@ export default function AddProductPage() {
       <ProductForm
         success={success}
         onCancel={() => navigate("wholesaler-products")}
-        onSubmit={(input) => {
-          addProduct(input)
+        onSubmit={async (input) => {
+          await addProduct(input)
           showSuccess()
         }}
       />

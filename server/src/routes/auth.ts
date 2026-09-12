@@ -5,7 +5,7 @@ import { verifyToken, requireRole, AuthRequest } from "../middleware/auth";
 const router = Router();
 
 router.post("/register", async (req: AuthRequest, res) => {
-  const { email, password, displayName, role } = req.body;
+  const { email, password, displayName, phone, role } = req.body;
   if (!email || !password) return res.status(400).json({ error: "email and password required" });
   // sanitize role: allow only 'buyer' or 'wholesaler' from client. Never allow 'admin'.
   const allowedClientRoles = ["buyer", "wholesaler"];
@@ -15,7 +15,7 @@ router.post("/register", async (req: AuthRequest, res) => {
     const uid = userRecord.uid;
     // set custom claim for role
     await admin.auth().setCustomUserClaims(uid, { role: userRole });
-    await db.collection("users").doc(uid).set({ email, displayName, role: userRole, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+    await db.collection("users").doc(uid).set({ email, displayName, phone: phone || "", role: userRole, createdAt: admin.firestore.FieldValue.serverTimestamp() });
     return res.status(201).json({ uid, email, role: userRole });
   } catch (err) {
     return res.status(500).json({ error: "Failed to create user", details: String(err) });

@@ -1,123 +1,121 @@
-import type { FormEvent } from "react"
-import {
-  Button,
-  Card,
-  Input,
-  SectionTitle,
-  Select,
-  SuccessMessage,
-  Textarea,
-} from "@/shared/ui"
-import { CurrencySelect } from "@/components"
+import { useState, type FormEvent } from "react"
+import { Button, Card, Input, SectionTitle, SuccessMessage, Textarea } from "@/shared/ui"
 import { useFormState } from "@/shared/hooks"
-import { PRODUCT_CATEGORIES } from "@/shared/config/categories"
 import { toFloat, toInt } from "@/shared/lib/number"
-import type { CreateProductInput, Currency } from "@/domain"
+import type { CreateProductInput } from "@/domain"
 
 export interface ProductFormProps {
-  onSubmit: (input: CreateProductInput) => void
+  onSubmit: (input: CreateProductInput) => Promise<void> | void
   onCancel: () => void
   success: boolean
 }
-
-const DEFAULT_MIN_UNITS = 50
 
 export default function ProductForm({
   onSubmit,
   onCancel,
   success,
 }: ProductFormProps) {
-  const { form, bind, setField } = useFormState({
-    name: "",
+  const { form, bind } = useFormState({
     description: "",
+    link: "",
+    minQuantity: "",
     unitPrice: "",
-    currency: "HNY" as Currency,
-    minUnits: "",
-    image: "",
-    category: PRODUCT_CATEGORIES[0] as string,
   })
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    onSubmit({
-      name: form.name,
-      description: form.description,
-      unitPrice: toFloat(form.unitPrice, 1),
-      currency: form.currency,
-      minUnits: toInt(form.minUnits, DEFAULT_MIN_UNITS),
-      image: form.image,
-      category: form.category,
-    })
+    setError("")
+
+    if (!photo) {
+      setError("Agrega una foto del producto antes de publicar.")
+      return
+    }
+
+    setLoading(true)
+    try {
+      await onSubmit({
+        photo,
+        description: form.description,
+        link: form.link,
+        minQuantity: toInt(form.minQuantity, 1),
+        unitPrice: toFloat(form.unitPrice, 1),
+      })
+    } catch (submissionError) {
+      setError(submissionError instanceof Error ? submissionError.message : String(submissionError))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <Card className="p-6 flex flex-col gap-4">
         <Input
-          label="Nombre del producto *"
-          placeholder="Ej. Aceite de girasol 5L"
+          label="Foto del producto *"
+          type="file"
+          accept="image/*"
+          onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+          hint="Se guarda en Firebase y se muestra en el catálogo"
           required
-          {...bind("name")}
         />
         <Textarea
           label="Descripción *"
-          placeholder="Detalla el producto: origen, características, empaque..."
-          rows={3}
+          placeholder="Ej. Arroz premium 1kg, aceite 5L, detergente concentrado..."
+          rows={4}
+          required
           {...bind("description")}
         />
-        <Select
-          label="Categoría"
-          value={form.category}
-          onChange={(e) => setField("category", e.target.value)}
-        >
-          {PRODUCT_CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </Select>
         <Input
-          label="URL de foto del producto"
+          label="Link de referencia"
           placeholder="https://..."
-          {...bind("image")}
+          required
+          {...bind("link")}
         />
       </Card>
 
       <Card className="p-6 flex flex-col gap-4">
-        <SectionTitle>Precio y disponibilidad</SectionTitle>
+        <SectionTitle>Precio y cantidad</SectionTitle>
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Precio por celda *"
+            label="Cantidad mínima *"
             type="number"
+            min={1}
+            step="1"
+            placeholder="10"
+            required
+            {...bind("minQuantity")}
+          />
+          <Input
+            label="Precio unitario *"
+            type="number"
+            min={0}
             step="0.01"
-            placeholder="5,00"
+            placeholder="5.50"
             required
             {...bind("unitPrice")}
           />
-          <CurrencySelect
-            value={form.currency}
-            onChange={(c) => setField("currency", c)}
-          />
         </div>
-        <Input
-          label="Celdas mínimas por Panal *"
-          type="number"
-          placeholder="50"
-          required
-          {...bind("minUnits")}
-        />
       </Card>
+
+      {error && (
+        <p className="text-xs font-semibold text-brown bg-honey-light rounded-lg px-3 py-2" role="alert">
+          {error}
+        </p>
+      )}
 
       {success ? (
         <SuccessMessage>
-          Producto publicado. Las Abejas ya pueden fundar Panales con él.
+          Producto publicado. Ya está disponible en el catálogo del backend.
         </SuccessMessage>
       ) : (
         <div className="flex gap-3">
-          <Button type="submit" variant="accent" size="lg">
-            Publicar producto
+          <Button type="submit" variant="accent" size="lg" disabled={loading}>
+            {loading ? "Publicando..." : "Publicar producto"}
           </Button>
-          <Button variant="ghost" onClick={onCancel}>
+          <Button type="button" variant="ghost" onClick={onCancel} disabled={loading}>
             Cancelar
           </Button>
         </div>

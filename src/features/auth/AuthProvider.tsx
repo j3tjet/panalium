@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -9,14 +10,37 @@ import {
 import type { RegisterUserInput, User } from "@/domain"
 import { homeViewForRole, useNavigation } from "@/app/navigation"
 import { fail, ok, type ActionResult } from "@/shared/lib/result"
-import { auth, db } from "@/shared/config/firebaseClient"
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth"
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore"
+import { apiFetch } from "@/shared/lib/api"
+import { auth } from "@/shared/config/firebaseClient"
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  type User as FirebaseUser,
+} from "firebase/auth"
+import { loadProductsFromBackend } from "@/features/products/api"
+import { productsActions, useAppDispatch } from "@/store"
 
 export type AuthResult = ActionResult
 
+interface BackendProfile {
+  email?: string
+  displayName?: string
+  phone?: string
+  role?: User["role"]
+  createdAt?: unknown
+  avatar?: string
+}
+
+interface BackendMeResponse {
+  uid: string
+  profile: BackendProfile | null
+}
+
 interface AuthContextValue {
   user: User | null
+  ready: boolean
   login: (email: string, password: string) => Promise<ActionResult>
   register: (input: RegisterUserInput & { password: string }) => Promise<ActionResult>
   logout: () => void
@@ -24,9 +48,47 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+function toIsoDate(value: unknown): string {
+  if (typeof value === "string" && value.trim()) {
+    return value
+  }
+
+  if (!value || typeof value !== "object") {
+    return new Date().toISOString()
+  }
+
+  const maybeTimestamp = value as { toDate?: () => Date; _seconds?: number }
+  if (typeof maybeTimestamp.toDate === "function") {
+    return maybeTimestamp.toDate().toISOString()
+  }
+
+  if (typeof maybeTimestamp._seconds === "number") {
+    return new Date(maybeTimestamp._seconds * 1000).toISOString()
+  }
+
+  return new Date().toISOString()
+}
+
+function mapFirebaseUser(firebaseUser: FirebaseUser, profile: BackendProfile | null): User {
+  const effectiveProfile = profile ?? {}
+  return {
+    id: firebaseUser.uid,
+    name: effectiveProfile.displayName || firebaseUser.displayName || "",
+    email: effectiveProfile.email || firebaseUser.email || "",
+    phone: effectiveProfile.phone || "",
+    role: effectiveProfile.role || "buyer",
+    wallet: { hny: 0, bs: 0, address: "" },
+    createdAt: toIsoDate(effectiveProfile.createdAt),
+    verified: !!firebaseUser.emailVerified,
+    avatar: effectiveProfile.avatar || firebaseUser.photoURL || undefined,
+  }
+}
+
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const { navigate, reset } = useNavigation()
+  const dispatch = useAppDispatch()
   const [user, setUser] = useState<User | null>(null)
+  const [ready, setReady] = useState(false)
 
   const signIn = useCallback(
     (u: User) => {
@@ -36,92 +98,124 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     [navigate],
   )
 
+  const hydrateSession = useCallback(
+    async (firebaseUser: FirebaseUser) => {
+      const token = await firebaseUser.getIdToken(true)
+
+      let profile: BackendProfile | null = null
+      try {
+        const me = await apiFetch<BackendMeResponse>("/auth/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        profile = me.profile
+      } catch (error) {
+        console.warn("Failed to load backend profile", error)
+      }
+
+      try {
+        const products = await loadProductsFromBackend(token)
+        dispatch(productsActions.setAll(products))
+      } catch (error) {
+        console.warn("Failed to load backend products", error)
+        dispatch(productsActions.setAll([]))
+      }
+
+      return mapFirebaseUser(firebaseUser, profile)
+    },
+    [dispatch],
+  )
+
   const login = useCallback<AuthContextValue["login"]>(
     async (email, password) => {
       try {
         const credential = await signInWithEmailAndPassword(auth, email, password)
-        const u = credential.user
-        const docRef = doc(db, "users", u.uid)
-        const snap = await getDoc(docRef)
-        const p = snap.exists() ? snap.data() : {}
-        const mapped: User = {
-          id: u.uid,
-          name: p.displayName || u.displayName || "",
-          email: u.email || email,
-          phone: p.phone || "",
-          role: p.role || "buyer",
-          wallet: { hny: 0, bs: 0, address: "" },
-          createdAt: p.createdAt?._seconds ? new Date(p.createdAt._seconds * 1000).toISOString() : new Date().toISOString(),
-          verified: !!u.emailVerified,
-        }
+        const mapped = await hydrateSession(credential.user)
         signIn(mapped)
         return ok
       } catch (err: any) {
-        const code = err?.code || ''
-        console.warn('Firebase login error', code, err)
-        if (typeof code === 'string') {
-          if (code.includes('wrong-password')) return fail('Contraseña incorrecta.')
-          if (code.includes('user-not-found')) return fail('No existe una cuenta con ese correo.')
-          if (code.includes('invalid-email')) return fail('Formato de correo inválido.')
-          if (code.includes('user-disabled')) return fail('Cuenta deshabilitada. Contacta al soporte.')
-          if (code.includes('invalid-credential')) return fail('Credenciales inválidas. Intenta limpiar caché o revisar configuración.')
+        const code = err?.code || ""
+        console.warn("Firebase login error", code, err)
+        if (typeof code === "string") {
+          if (code.includes("wrong-password")) return fail("Contraseña incorrecta.")
+          if (code.includes("user-not-found")) return fail("No existe una cuenta con ese correo.")
+          if (code.includes("invalid-email")) return fail("Formato de correo inválido.")
+          if (code.includes("user-disabled")) return fail("Cuenta deshabilitada. Contacta al soporte.")
+          if (code.includes("invalid-credential")) return fail("Credenciales inválidas. Intenta limpiar caché o revisar configuración.")
         }
         return fail(err?.message || String(err))
       }
     },
-    [signIn],
+    [hydrateSession, signIn],
   )
 
   const register = useCallback<AuthContextValue["register"]>(
     async (input) => {
       try {
-        // create user with Firebase client SDK
-        const credential = await createUserWithEmailAndPassword(auth, input.email, (input as any).password)
-        const u = credential.user
-        // update displayName
-        await updateProfile(u, { displayName: input.name })
-        // ensure role cannot be 'admin'
-        const role = input.role === "wholesaler" ? "wholesaler" : "buyer"
-        const docRef = doc(db, "users", u.uid)
-        await setDoc(docRef, {
-          email: input.email,
-          displayName: input.name,
-          phone: input.phone,
-          role,
-          createdAt: serverTimestamp(),
+        await apiFetch<{ uid: string; email: string; role: User["role"] }>("/auth/register", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: input.email,
+            password: (input as { password: string }).password,
+            displayName: input.name,
+            phone: input.phone,
+            role: input.role,
+          }),
         })
-        const mapped: User = {
-          id: u.uid,
-          name: input.name,
-          email: input.email,
-          phone: input.phone,
-          role,
-          wallet: { hny: 0, bs: 0, address: "" },
-          createdAt: new Date().toISOString(),
-          verified: !!u.emailVerified,
-        }
+
+        const credential = await signInWithEmailAndPassword(auth, input.email, (input as any).password)
+        await updateProfile(credential.user, { displayName: input.name })
+        const mapped = await hydrateSession(credential.user)
         signIn(mapped)
         return ok
       } catch (err: any) {
-        // firebase client throws FirebaseError with `code` like 'auth/email-already-in-use'
-        const code = err?.code || ''
-        if (typeof code === 'string' && code.includes('email-already-in-use')) {
-          return fail('El correo ya está registrado. Por favor inicia sesión o recupera la contraseña.')
+        const code = err?.code || ""
+        if (typeof code === "string" && code.includes("email-already-in-use")) {
+          return fail("El correo ya está registrado. Por favor inicia sesión o recupera la contraseña.")
         }
         return fail(err?.message || String(err))
       }
     },
-    [signIn],
+    [hydrateSession, signIn],
   )
 
   const logout = useCallback(() => {
+    void signOut(auth)
     setUser(null)
+    dispatch(productsActions.setAll([]))
     reset()
-  }, [reset])
+  }, [dispatch, reset])
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        setUser(null)
+        dispatch(productsActions.setAll([]))
+        setReady(true)
+        return
+      }
+
+      try {
+        const mapped = await hydrateSession(firebaseUser)
+        setUser(mapped)
+      } catch (error) {
+        console.warn("Failed to hydrate auth session", error)
+        setUser(mapFirebaseUser(firebaseUser, null))
+      } finally {
+        setReady(true)
+      }
+    })
+
+    return unsubscribe
+  }, [dispatch, hydrateSession])
 
   const value = useMemo(
-    () => ({ user, login, register, logout }),
-    [user, login, register, logout],
+    () => ({ user, ready, login, register, logout }),
+    [user, ready, login, register, logout],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -35,7 +35,7 @@ export default function AuthPage() {
         </Card>
 
         <p className="text-center text-xs text-faint mt-4">
-          Al registrarte creamos tu billetera Web3 automáticamente.
+          Tu perfil, productos y sesión se guardan en Firebase.
         </p>
       </div>
     </div>

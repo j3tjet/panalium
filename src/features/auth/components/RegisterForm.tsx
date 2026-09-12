@@ -95,7 +95,7 @@ export default function RegisterForm() {
             Una Abeja, una cuenta
           </p>
           <p className="text-xs text-muted-foreground">
-            El número de celular es único por cuenta. Lo verificamos por SMS.
+            Guardamos tu perfil en Firebase y el número de celular queda asociado a tu cuenta.
           </p>
         </div>
       </div>
