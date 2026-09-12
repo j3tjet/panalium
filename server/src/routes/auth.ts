@@ -7,10 +7,13 @@ const router = Router();
 router.post("/register", async (req: AuthRequest, res) => {
   const { email, password, displayName, role } = req.body;
   if (!email || !password) return res.status(400).json({ error: "email and password required" });
-  const userRole = role || "buyer";
+  // sanitize role: allow only 'buyer' or 'wholesaler' from client. Never allow 'admin'.
+  const allowedClientRoles = ["buyer", "wholesaler"];
+  const userRole = allowedClientRoles.includes(role) ? role : "buyer";
   try {
     const userRecord = await admin.auth().createUser({ email, password, displayName });
     const uid = userRecord.uid;
+    // set custom claim for role
     await admin.auth().setCustomUserClaims(uid, { role: userRole });
     await db.collection("users").doc(uid).set({ email, displayName, role: userRole, createdAt: admin.firestore.FieldValue.serverTimestamp() });
     return res.status(201).json({ uid, email, role: userRole });
