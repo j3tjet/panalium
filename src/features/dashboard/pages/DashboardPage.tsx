@@ -1,9 +1,12 @@
-import { Button, Page, StatCard } from "@/shared/ui"
+import { useState } from "react"
+import { Button, Modal, Page, StatCard } from "@/shared/ui"
 import { Icon } from "@/shared/icons/Icon"
 import { firstName, groupsForUser, type UserRole } from "@/domain"
 import { useAppState } from "@/store"
 import { useNavigation } from "@/app/navigation"
 import { useCurrentUser } from "@/features/auth"
+import GroupForm from "@/features/groups/components/GroupForm"
+import { useGroupActions } from "@/features/groups/hooks/useGroups"
 import { useDashboardStats } from "../hooks/useDashboardStats"
 import HoneyCard from "../components/HoneyCard"
 import ActiveGroupsList from "../components/ActiveGroupsList"
@@ -20,6 +23,8 @@ export default function DashboardPage() {
   const user = useCurrentUser()
   const { groups } = useAppState()
   const { navigate } = useNavigation()
+  const { createGroup } = useGroupActions()
+  const [isCreateOpen, setCreateOpen] = useState(false)
   const stats = useDashboardStats(user)
   const myGroups = groupsForUser(groups, user.id)
   const latestSwarmGroup =
@@ -40,7 +45,7 @@ export default function DashboardPage() {
           </p>
         </div>
         {isBuyer && (
-          <Button onClick={() => navigate("create-group")}>
+          <Button onClick={() => setCreateOpen(true)}>
             <Icon.plus /> Fundar un Panal
           </Button>
         )}
@@ -71,6 +76,25 @@ export default function DashboardPage() {
       {user.role === "wholesaler" && <WholesalerProductList />}
       {user.role === "admin" && (
         <ActiveGroupsList groups={groups} userId={user.id} />
+      )}
+
+      {isCreateOpen && (
+        <Modal
+          title="Fundar un Panal"
+          description="Completa los datos del producto para abrir un nuevo Panal."
+          size="lg"
+          onClose={() => setCreateOpen(false)}
+        >
+          <GroupForm
+            type="local"
+            success={false}
+            onCancel={() => setCreateOpen(false)}
+            onSubmit={(input: Parameters<typeof createGroup>[0]) => {
+              createGroup(input)
+              setCreateOpen(false)
+            }}
+          />
+        </Modal>
       )}
     </Page>
   )

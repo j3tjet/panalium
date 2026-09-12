@@ -1,18 +1,13 @@
-import type { FormEvent } from "react"
+import { useId, useRef, useState, type FormEvent } from "react"
 import {
   Button,
   Card,
-  InfoBanner,
   Input,
-  SectionTitle,
-  Select,
   SuccessMessage,
   Textarea,
 } from "@/shared/ui"
-import { CurrencySelect } from "@/components"
 import { Icon } from "@/shared/icons/Icon"
 import { useFormState } from "@/shared/hooks"
-import { IMPORT_CATEGORY, PRODUCT_CATEGORIES } from "@/shared/config/categories"
 import { toFloat, toInt } from "@/shared/lib/number"
 import type { CreateGroupInput, Currency, GroupType } from "@/domain"
 
@@ -42,9 +37,9 @@ interface VariantCopy {
 const VARIANT: Record<GroupType, VariantCopy> = {
   local: {
     namePlaceholder: "Ej. Aceite de oliva 1L",
-    descPlaceholder: "Describe el producto, la calidad y el proveedor...",
-    priceLabel: "Precio por celda *",
-    unitsLabel: "Celdas del Panal *",
+    descPlaceholder: "Describe el producto, su uso y detalles relevantes...",
+    priceLabel: "Precio por unidad *",
+    unitsLabel: "Cantidad mínima de productos *",
     depositLabel: "Depósito de seriedad *",
     deadlineLabel: "Fecha de cierre",
     submitLabel: "Fundar el Panal",
@@ -56,10 +51,9 @@ const VARIANT: Record<GroupType, VariantCopy> = {
   },
   international: {
     namePlaceholder: "Ej. Auriculares TWS Bluetooth",
-    descPlaceholder:
-      "Especificaciones, calidad, tiempos de entrega estimados...",
-    priceLabel: "Precio por celda (HNY) *",
-    unitsLabel: "Celdas mínimas del proveedor *",
+    descPlaceholder: "Describe el producto, la marca y la plataforma de origen...",
+    priceLabel: "Precio por unidad *",
+    unitsLabel: "Cantidad mínima de productos *",
     depositLabel: "Depósito de seriedad *",
     deadlineLabel: "Fecha de cierre",
     submitLabel: "Fundar el Panal de importación",
@@ -79,7 +73,10 @@ export default function GroupForm({
   success,
 }: GroupFormProps) {
   const v = VARIANT[type]
-  const isIntl = type === "international"
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const fileInputId = useId()
+  const [selectedImage, setSelectedImage] = useState<string>("")
+
   const { form, bind, setField } = useFormState({
     productName: "",
     description: "",
@@ -92,24 +89,34 @@ export default function GroupForm({
     currency: "HNY" as Currency,
     entryDeposit: "",
     deadline: "",
-    category: PRODUCT_CATEGORIES[0] as string,
+    category: "General",
   })
+
+  function handleImageSelect(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const previewUrl = URL.createObjectURL(file)
+    setSelectedImage(previewUrl)
+    setField("imageUrl", previewUrl)
+  }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
+
     onSubmit({
       type,
-      productName: form.productName,
+      productName: form.productName || "Producto del Panal",
       description: form.description,
-      productLink: isIntl ? form.productLink : undefined,
+      productLink: form.productLink,
       supplierName: form.supplierName || undefined,
-      imageUrl: form.imageUrl,
+      imageUrl: selectedImage || form.imageUrl,
       pickupPoint: form.pickupPoint || "Por definir",
       targetUnits: toInt(form.targetUnits, v.defaultUnits),
       unitPrice: toFloat(form.unitPrice, 1),
       currency: form.currency,
       entryDeposit: toFloat(form.entryDeposit, v.defaultDeposit),
-      category: isIntl ? IMPORT_CATEGORY : form.category,
+      category: "General",
       deadline: form.deadline || undefined,
     })
   }
@@ -117,102 +124,73 @@ export default function GroupForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <Card className="p-6 flex flex-col gap-4">
-        <SectionTitle>Producto</SectionTitle>
-        <Input
-          label="Nombre del producto *"
-          placeholder={v.namePlaceholder}
-          required
-          {...bind("productName")}
-        />
-        {isIntl && (
-          <Input
-            label="Enlace del producto (Alibaba u otro) *"
-            placeholder="https://www.alibaba.com/..."
-            required
-            {...bind("productLink")}
+        <div className="rounded-[24px] border-2 border-dashed border-[#d5d0c7] bg-[#f4efe8] p-4">
+          {selectedImage ? (
+            <div className="overflow-hidden rounded-[20px] border border-[#d5d0c7] bg-white">
+              <img
+                src={selectedImage}
+                alt="Producto seleccionado"
+                className="h-56 w-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="flex h-56 flex-col items-center justify-center gap-5 rounded-[20px] border border-dashed border-[#d5d0c7] bg-[#f7f3ee]">
+              
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f0c13b] text-3xl font-bold text-[#1b1b1b] shadow-sm transition hover:scale-[1.02]"
+                aria-label="Añadir foto del producto"
+              >
+                <Icon.plus size={26} />
+              </button>
+            </div>
+          )}
+
+          <input
+            id={fileInputId}
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageSelect}
           />
-        )}
-        <Input
-          label="Proveedor"
-          placeholder={
-            isIntl ? "Ej. Shenzhen Lights" : "Ej. Distribuidora Pérez"
-          }
-          {...bind("supplierName")}
-        />
+        </div>
+
         <Textarea
-          label="Descripción"
+          label="Descripción *"
           placeholder={v.descPlaceholder}
           rows={3}
+          required
           {...bind("description")}
         />
-        {!isIntl && (
-          <Select
-            label="Categoría"
-            value={form.category}
-            onChange={(e) => setField("category", e.target.value)}
-          >
-            {PRODUCT_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </Select>
-        )}
-        <Input
-          label="URL de imagen (opcional)"
-          placeholder="https://..."
-          {...bind("imageUrl")}
-        />
-      </Card>
 
-      <Card className="p-6 flex flex-col gap-4">
-        <SectionTitle>Condiciones del Panal</SectionTitle>
+        <Input
+          label="Link del producto (plataforma) *"
+          placeholder="https://www.amazon.com/..."
+          required
+          {...bind("productLink")}
+        />
+
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label={v.priceLabel}
+            label="Cantidad mínima de productos *"
+            type="number"
+            placeholder="10"
+            required
+            {...bind("targetUnits")}
+          />
+          <Input
+            label="Precio por unidad *"
             type="number"
             step="0.01"
             placeholder="4,50"
             required
             {...bind("unitPrice")}
           />
-          <CurrencySelect
-            label="Moneda"
-            value={form.currency}
-            onChange={(c) => setField("currency", c)}
-          />
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label={v.unitsLabel}
-            type="number"
-            placeholder="100"
-            required
-            {...bind("targetUnits")}
-          />
-          <Input
-            label={v.depositLabel}
-            type="number"
-            step="0.01"
-            placeholder="20,00"
-            required
-            {...bind("entryDeposit")}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="Punto de retiro del primer Enjambre"
-            placeholder="Ej. Chacao"
-            hint="Podrás añadir más Enjambres después."
-            {...bind("pickupPoint")}
-          />
-          <Input label={v.deadlineLabel} type="date" {...bind("deadline")} />
-        </div>
-      </Card>
 
-      <InfoBanner title={v.noteTitle} icon={<Icon.shield size={16} />}>
-        {v.note}
-      </InfoBanner>
+      </Card>
 
       {success ? (
         <SuccessMessage>{v.successLabel}</SuccessMessage>

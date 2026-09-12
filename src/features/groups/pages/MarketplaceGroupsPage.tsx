@@ -4,6 +4,7 @@ import {
   Card,
   CONTROL_CLASS,
   EmptyState,
+  Modal,
   Page,
   PageHeader,
   useToast,
@@ -20,18 +21,20 @@ import { useGroupActions, useGroups } from "../hooks/useGroups"
 import GroupCard from "../components/GroupCard"
 import GroupTypeFilter from "../components/GroupTypeFilter"
 import GroupDetailPanel from "../components/GroupDetailPanel"
+import GroupForm from "../components/GroupForm"
 
 export default function MarketplaceGroupsPage() {
   const user = useCurrentUser()
   const { navigate } = useNavigation()
   const toast = useToast()
   const groups = useGroups()
-  const { joinGroup } = useGroupActions()
+  const { joinGroup, createGroup } = useGroupActions()
   const [filter, setFilter] = useState<GroupTypeFilterValue>("all")
   const [search, setSearch] = useState("")
   const [selectedId, setSelectedId] = useState<string | null>(
     groups[0]?.id ?? null,
   )
+  const [isCreateOpen, setCreateOpen] = useState(false)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -57,9 +60,7 @@ export default function MarketplaceGroupsPage() {
         }
         actions={
           isBuyer && (
-            <Button onClick={() => navigate("create-group")}>
-              Fundar un Panal
-            </Button>
+            <Button onClick={() => setCreateOpen(true)}>Fundar un Panal</Button>
           )
         }
       />
@@ -121,6 +122,25 @@ export default function MarketplaceGroupsPage() {
             </Card>
           )}
         </div>
+      )}
+
+      {isCreateOpen && (
+        <Modal
+          title="Fundar un Panal"
+          description="Completa los datos del producto para abrir un nuevo Panal."
+          size="lg"
+          onClose={() => setCreateOpen(false)}
+        >
+          <GroupForm
+            type="local"
+            success={false}
+            onCancel={() => setCreateOpen(false)}
+            onSubmit={(input) => {
+              createGroup(input)
+              setCreateOpen(false)
+            }}
+          />
+        </Modal>
       )}
     </Page>
   )

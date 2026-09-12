@@ -1,16 +1,20 @@
 import { useMemo, useState } from "react"
-import { Button, Page, PageHeader } from "@/shared/ui"
+import { Button, Modal, Page, PageHeader } from "@/shared/ui"
 import { matchesProductSearch } from "@/domain"
 import { useNavigation } from "@/app/navigation"
 import { useProducts } from "../hooks/useProducts"
 import ProductCard from "../components/ProductCard"
 import ProductFilters, { ALL_CATEGORIES } from "../components/ProductFilters"
+import GroupForm from "@/features/groups/components/GroupForm"
+import { useGroupActions } from "@/features/groups/hooks/useGroups"
 
 export default function MarketplaceProductsPage() {
   const { navigate } = useNavigation()
   const { products, categories } = useProducts()
+  const { createGroup } = useGroupActions()
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState(ALL_CATEGORIES)
+  const [isCreateOpen, setCreateOpen] = useState(false)
 
   const filtered = useMemo(
     () =>
@@ -45,7 +49,7 @@ export default function MarketplaceProductsPage() {
                 variant="secondary"
                 size="sm"
                 block
-                onClick={() => navigate("create-group")}
+                onClick={() => setCreateOpen(true)}
               >
                 Fundar un Panal con este producto
               </Button>
@@ -53,6 +57,25 @@ export default function MarketplaceProductsPage() {
           />
         ))}
       </div>
+
+      {isCreateOpen && (
+        <Modal
+          title="Fundar un Panal"
+          description="Completa los datos del producto para abrir un nuevo Panal."
+          size="lg"
+          onClose={() => setCreateOpen(false)}
+        >
+          <GroupForm
+            type="local"
+            success={false}
+            onCancel={() => setCreateOpen(false)}
+            onSubmit={(input) => {
+              createGroup(input)
+              setCreateOpen(false)
+            }}
+          />
+        </Modal>
+      )}
     </Page>
   )
 }
